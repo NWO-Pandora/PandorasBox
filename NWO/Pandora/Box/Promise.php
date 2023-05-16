@@ -83,7 +83,7 @@ class Promise implements PromiseInterface {
                 $Count = \count($Promises);
                 $Resolved = 0;
                 foreach($Promises as $Promise) {
-                    $Promise->then(static function($Result) use (&$Resolved, $Count) {
+                    $Promise->then(static function($Result) use (&$Resolved) {
                         $Resolved++;
                         return $Result;
                     });

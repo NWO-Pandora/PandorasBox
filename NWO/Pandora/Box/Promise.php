@@ -42,24 +42,26 @@ class Promise implements PromiseInterface {
             return;
         }
 
-        Box::$Loop->addPeriodicTimer(0.01, function(Timer $timer) use ($Generator) {
+        Box::$Loop->addPeriodicTimer(0.01, function(Timer $Timer) use ($Generator) {
             if($Generator->valid()) {
                 try {
                     if($Generator->key() === static::Resolve) {
-                        Box::$Loop->cancelTimer($timer);
+                        Box::$Loop->cancelTimer($Timer);
                         $this->Promise->resolve($Generator->current());
+                        return;
                     }
                     if($Generator->key() === static::Reject) {
-                        Box::$Loop->cancelTimer($timer);
+                        Box::$Loop->cancelTimer($Timer);
                         $this->Promise->reject($Generator->current());
+                        return;
                     }
                     $Generator->next();
                 } catch(\Throwable $Exception) {
-                    Box::$Loop->cancelTimer($timer);
+                    Box::$Loop->cancelTimer($Timer);
                     $this->Promise->reject($Exception);
                 }
             } else {
-                Box::$Loop->cancelTimer($timer);
+                Box::$Loop->cancelTimer($Timer);
                 $this->Promise->resolve($Generator->getReturn());
             }
         });
@@ -82,17 +84,29 @@ class Promise implements PromiseInterface {
             static function() use ($Promises): \Generator {
                 $Count = \count($Promises);
                 $Resolved = 0;
+                $Rejected = null;
+                $Results = [];
+                $Resolve = static function($Result) use (&$Resolved, &$Results) {
+                    $Results[] = $Result;
+                    $Resolved++;
+                    return $Result;
+                };
+                $Reject = static function($Result) use (&$Rejected) {
+                    $Rejected = $Result;
+                    return $Result;
+                };
                 foreach($Promises as $Promise) {
-                    $Promise->then(static function($Result) use (&$Resolved) {
-                        $Resolved++;
-                        return $Result;
-                    });
+                    $Promise->then($Resolve, $Reject);
                 }
                 yield;
                 while($Resolved < $Count) {
                     yield;
+                    if($Rejected !== null) {
+                        yield Promise::Reject => $Rejected;
+                        return;
+                    }
                 }
-                yield Promise::Resolve => $Promises;
+                yield Promise::Resolve => $Results;
             }
         );
     }

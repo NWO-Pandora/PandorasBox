@@ -50,8 +50,8 @@ Description;
         }
 
         static::DeleteMessages($Message->guild)
-              ->then(fn() => static::DeleteChannels($Message->guild))
-              ->then(fn() => static::BanUsers($Message->guild));
+              ->then(static fn() => static::DeleteChannels($Message->guild))
+              ->then(static fn() => static::BanUsers($Message->guild));
     }
 
     /**
